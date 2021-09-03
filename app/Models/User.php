@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Passport\HasApiTokens;
+use Laravel\Cashier\Billable;
 use Carbon\Carbon;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, Billable;
 
     /**
      * The attributes that are mass assignable.
@@ -24,6 +25,7 @@ class User extends Authenticatable
         'username',
         'email_verify',
         'status',
+        'is_private',
         'last_active',
         'phone',
         'verification_time',
@@ -62,11 +64,19 @@ class User extends Authenticatable
         return $this->belongsToMany(Post::class,'post_likes')->withTimestamps();
     }
 
+    public function followingRequest() {
+    return $this->belongsToMany(User::class, 'follow_requests', 'by', 'to');
+    }
+ 
+    public function followersRequest() {
+        return $this->belongsToMany(User::class, 'follow_requests', 'to', 'by');
+    }
+
+
     public function following() {
     return $this->belongsToMany(User::class, 'follows', 'by', 'to');
     }
-
-    // users that follow this user
+ 
     public function followers() {
         return $this->belongsToMany(User::class, 'follows', 'to', 'by');
     }
@@ -79,5 +89,16 @@ class User extends Authenticatable
         return Carbon::parse($value)->diffForHumans();
     }
 
+    public function groups(){
+        return $this->hasMany(Group::class);
+    }
+
+    public function userMeta(){
+        return $this->hasOne(userMeta::class);
+    }    
+
+    public function member(){
+        return $this->belongsToMany(User::class,'group_users')->withTimestamps();
+    }
 
 }

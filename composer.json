@@ -10,10 +10,13 @@
         "fruitcake/laravel-cors": "^2.0",
         "guzzlehttp/guzzle": "^7.0.1",
         "kalnoy/nestedset": "^6.0",
+        "laravel/cashier": "^13.5",
         "laravel/framework": "^8.54",
         "laravel/passport": "^10.1",
         "laravel/sanctum": "^2.11",
         "laravel/tinker": "^2.5",
+        "laravel/ui": "^3.3",
+        "laravelcollective/html": "^6.2",
         "nesbot/carbon": "^2.52"
     },
     "require-dev": {
@@ -29,7 +32,10 @@
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
-        }
+        },
+        "files":[
+            "app/Helper/PushNotification.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {

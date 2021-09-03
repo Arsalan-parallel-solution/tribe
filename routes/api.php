@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\RegisterController;
 use App\Http\Controllers\API\PostController;
 use App\Http\Controllers\API\UserController;
+use App\Http\Controllers\API\GroupController;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,7 +32,12 @@ Route::post('forgot-password-token',[RegisterController::class,'forgotPasswordTo
 Route::post('reset-password',[RegisterController::class,'resetPassword']);
 
 Route::middleware('auth:api')->group(function () { 
-    
+
+
+    Route::post('first-step',[UserController::class,'firstStep']);
+    Route::post('second-step',[UserController::class,'secondStep']);
+    Route::post('third-step',[UserController::class,'thirdStep']);
+
     Route::post('post/add-delete-like', [PostController::class,'addDeletePostLike'])->name('post.addlike');
     Route::resource('post', PostController::class);
     Route::get('post-details',[UserController::class,'postdetails']);
@@ -46,7 +52,36 @@ Route::middleware('auth:api')->group(function () {
 
     Route::post('follow-unfollow', [UserController::class,'followUnFollowUser']);
 
+    Route::post('request-accept-reject',[UserController::class,'requestAcceptReject']);
+
     Route::get('user-information',[UserController::class,'postdetails']);
+
+    Route::post('add-group',[GroupController::class,'addGroup']);
+
+    Route::put('update-group/{id}',[GroupController::class,'updateGroup']);
+
+    Route::delete('delete-group/{id}',[GroupController::class,'deleteGroup']);
+
+    Route::get('get-groups',[GroupController::class,'listGroup']);
+
+    Route::get('single-groups/{id}',[GroupController::class,'singleGroup']);
+
+    Route::post('group/add-members',[GroupController::class,'addMember']);
+
+    Route::post('group/delete-members',[GroupController::class,'deleteMember']);
+
+    Route::post('group/post/approve-disapprove',[GroupController::class,'approvedDisapprovedPost']);
+
+    Route::post('report',[UserController::class,'report']);
+
+    Route::post('timeline',[UserController::class,'timeline']);
+
+    Route::post('trending',[UserController::class,'trending']);
+
+    Route::post('search',[UserController::class,'search']);
+
+
+
 });
 
 

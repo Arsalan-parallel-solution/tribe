@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Validator;
 use App\Models\Post;
+use App\Models\Group;
 use App\Models\PostMeta;
 use App\Models\Comment;
+use App\Models\Notification;
+use App\Helpers\PushNotification;
 use Auth;
 use DB;
 use Exception;
@@ -25,7 +28,7 @@ class PostController extends Controller
         $post = Post::with(['postmeta','user','likes','comments','comments.user','comments.replies'])->withCount('likes','comments')->where([['user_id',$request->user()->id],['status',1]])->get();
         
         $responseArray = [];
-        $responseArray['code'] = 201;
+        $responseArray['code'] = 200;
         $responseArray['messages'] = 'Post list';
         $responseArray['data'] = $post;
 
@@ -68,10 +71,34 @@ class PostController extends Controller
         $post = new Post();
         $post->content = $request->content; 
         $post->type = $request->type;
-        $post->status = 1;
+        
         $post->user()->associate($request->user()->id);
         $post->privacy = $request->privacy;
+        
+        if($request->has('group_id')){
+            $post->group_id = $request->group_id;
+            $post->status = 2;
+        }else{
+            $post->status = 1;
+        }
+
         $post->save();
+
+        if($request->has('group_id')){
+
+        $group = Group::find($request->group_id);
+
+        $notificationData=[];
+        $notificationData['by'] = $request->user()->id;
+        $notificationData['to'] = $group->user_id;
+        $notificationData['post_id'] = $post->id;
+        $notificationData['group_id'] = $request->group_id;
+        $notificationData['type'] = 'request'; 
+        $notification = $this->notification($notificationData);
+
+        }
+
+
         $mediaArray = [];
 
         foreach($request->media as $media){
@@ -85,7 +112,7 @@ class PostController extends Controller
         $responseArray['messages'] = 'Post added successfully';
         $responseArray['data'] = $post->load('likes','postmeta','comments','comments.user','comments.replies')->loadCount('likes','comments');
 
-        return response()->json($responseArray,200);
+        return response()->json($responseArray,201);
 
 
         }catch(Exception $e){
@@ -107,12 +134,33 @@ class PostController extends Controller
     {
         $post = Post::with('likes','postmeta','comments','comments.user','comments.replies')->withCount('likes','comments')->where([['id',$id],['status',1]])->get();
         
+        
+        $postUpdate = Post::find($id);
+        if($postUpdate){
+        $countView = $postUpdate->views;
+        $postUpdate->views = $countView+1;
+        $postUpdate->update();
+        }
+        
         $responseArray = [];
-        $responseArray['code'] = 201;
-        $responseArray['messages'] = count($post) > 0 ? 'Post detail' : 'Not found';
-        $responseArray['data'] = $post;
 
-        return response()->json($responseArray,200);
+        if(count($post) > 0){
+ 
+                $responseArray['code'] = 200;
+                $responseArray['messages'] = 'Post detail';
+                $responseArray['data'] = $post;
+
+                return response()->json($responseArray,200);
+
+        } 
+ 
+                $responseArray['code'] =  204 ;
+                $responseArray['messages'] =  'Not found';
+                $responseArray['data'] = null;
+ 
+                 return response()->json($responseArray,200);
+ 
+
     }
 
     /**
@@ -157,7 +205,7 @@ class PostController extends Controller
         $responseArray['messages'] = 'Post updated successfully';
         $responseArray['data'] = $post->load('likes','postmeta','comments','comments.user','comments.replies')->loadCount('likes','comments');
 
-        return response()->json($responseArray,200);
+        return response()->json($responseArray,201);
         
         }catch(Exception $e){
 
@@ -175,6 +223,7 @@ class PostController extends Controller
      */
     public function destroy($id)
     {   
+
         try{
 
         $post = Post::findOrFail($id); 
@@ -186,7 +235,7 @@ class PostController extends Controller
         $responseArray['messages'] = 'Post deleted successfully';
         $responseArray['data'] = null;
 
-        return response()->json($responseArray,200);
+        return response()->json($responseArray,201);
 
         }catch(Exception $e){
 
@@ -203,10 +252,10 @@ class PostController extends Controller
         ]);
  
         if($validator->fails()){
-            return response()->json($validator->errors(),200);
+            return response()->json($validator->errors(),422);
         }
 
-        try{
+        // try{
 
         $responseArray = []; 
         $hasLikes =  $request->user()->likes()->where('post_likes.post_id', $request->post_id)->exists();
@@ -219,17 +268,29 @@ class PostController extends Controller
         $responseArray['data'] = null; 
         
         }else{
+
         $request->user()->likes()->attach($request->post_id);
+
+        $post = Post::find($request->post_id);
+
+        $notificationData=[];
+        $notificationData['by'] = $request->user()->id;
+        $notificationData['to'] = $post->user_id;
+        $notificationData['post_id'] = $post->id;
+        $notificationData['type'] = 'like'; 
+
+        $notification = $this->notification($notificationData);
+
         $responseArray['code'] = 201;
         $responseArray['messages'] = 'like added';
         $responseArray['data'] = null;
         }
 
-        return response()->json($responseArray,200);
+        return response()->json($responseArray,201);
         
-        }catch(Exception $e){
-            return response()->json(['error' => 'Something went wrong.'], 500);
-        }
+        // }catch(Exception $e){
+        //     return response()->json(['error' => 'Something went wrong.'], 500);
+        // }
 
     }
 
@@ -242,7 +303,7 @@ class PostController extends Controller
         ]);
 
         if($validator->fails()){
-            return response()->json($validator->errors(),200);
+            return response()->json($validator->errors(),422);
         }        
 
         try{
@@ -253,12 +314,22 @@ class PostController extends Controller
              $comment->post_id = $request->post_id;
              $comment->save(); 
 
+        $post = Post::find($request->post_id);
+        $notificationData=[];
+        $notificationData['by'] = $request->user()->id;
+        $notificationData['to'] = $post->user_id;
+        $notificationData['post_id'] = $request->post_id;
+        $notificationData['type'] = 'comment'; 
+
+        $notification = $this->notification($notificationData);
+
+
         $responseArray['code'] = 201;
         $responseArray['messages'] = 'Comment added';
         $responseArray['data'] = $comment;
          
 
-        return response()->json($responseArray,200);
+        return response()->json($responseArray,201);
 
 
 
@@ -278,8 +349,11 @@ class PostController extends Controller
         ]);
 
         if($validator->fails()){
-            return response()->json($validator->errors(),200);
+            return response()->json($validator->errors(),422);
         }        
+
+
+        try{
 
 
         $comment = Comment::create([
@@ -295,27 +369,18 @@ class PostController extends Controller
 
             $node->appendNode($comment);
         }
+ 
+             
+        $responseArray = [];
+        $responseArray['code'] = 201;
+        $responseArray['messages'] = 'Comment reply added';
+        $responseArray['data'] = $comment;
 
+        return response()->json($responseArray,201);
 
-
-
-        // try{
-        //      $comment = new Comment();
-        //      $comment->parent_id = $request->parent_id;
-        //      $comment->comment = $request->comment;
-        //      $comment->user_id = $request->user()->id;
-        //      $comment->post_id = $request->post_id;
-        //      $comment->save();  
-        // $responseArray = [];
-        // $responseArray['code'] = 201;
-        // $responseArray['messages'] = 'Comment reply added';
-        // $responseArray['data'] = $comment;
-
-        // return response()->json($responseArray,200);
-
-        // }catch(Exception $e){
-        //     return response()->json(['error' => 'Something went wrong.'], 500);
-        // }
+        }catch(Exception $e){
+            return response()->json(['error' => 'Something went wrong.'], 500);
+        }
 
     }
 
@@ -339,7 +404,7 @@ class PostController extends Controller
                 $responseArray['data'] = null;
 
 
-            return response()->json($responseArray, 500);
+            return response()->json($responseArray, 201);
 
 
         }catch(Exception $e){
@@ -350,7 +415,13 @@ class PostController extends Controller
     }
 
 
+    public function notification($data){
 
+        $notification = new PushNotification();
+        $user = $notification->addNotification($data);
+         
+
+    }
 
 
 

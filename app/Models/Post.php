@@ -13,6 +13,8 @@ class Post extends Model
     protected $fillable = [
         'post_content', 
         'post_type',
+        'group_id',
+        'views',
         'user_id',
         'post_privacy',
         'status' 

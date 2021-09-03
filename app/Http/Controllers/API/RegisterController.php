@@ -35,6 +35,7 @@ class RegisterController extends Controller
 
         $input = $request->all();
         $input['password'] = bcrypt($input['password']);
+        $input['is_private'] = 'no';
         $otp = rand(1000,9999);
         $now  = date("Y-m-d H:i:s");
         $input['otp'] = $otp;
@@ -60,11 +61,11 @@ class RegisterController extends Controller
         Mail::to($request->email)->send(new SendMail($array));  
 
         $responseArray = [];
-        $responseArray['code'] = 200;
+        $responseArray['code'] = 201;
         $responseArray['messages'] = 'Please check your mail for verification.';
         $responseArray['data'] = $user;
 
-        return response()->json($responseArray,200);
+        return response()->json($responseArray,201);
 
     }
 
@@ -79,7 +80,7 @@ class RegisterController extends Controller
         ]);
 
     if($validator->fails()){
-        return  response()->json($validator->errors(),202);
+        return  response()->json($validator->errors(),422);
     }
 
     if(Auth::attempt(['email'=>$request->email,'password'=>$request->password])){
@@ -92,7 +93,7 @@ class RegisterController extends Controller
 
         if(!$user->email_verify=="yes"){
 
-            return response()->json([ 'error' => 'Kindly verify your account.'],202);
+            return response()->json([ 'error' => 'Kindly verify your account.'],200);
         }
 
         return response()->json($responseArray,200);
@@ -109,16 +110,17 @@ class RegisterController extends Controller
 
        $validator = Validator::make($request->all(),[
             'token' => 'required', 
+            'email' => 'required|exists:users,id', 
         ]);
 
         if($validator->fails()){
         
-        return response()->json($validator->errors(),202);
+        return response()->json($validator->errors(),422);
         
         }
         $responseArray = [];
         
-        $user = User::where([['otp',$request->token],['email_verify',null]])->first();
+        $user = User::where([['email',$request->email],['otp',$request->token],['email_verify',null]])->first();
         
         if($user != null){
         
@@ -165,11 +167,7 @@ class RegisterController extends Controller
 
  
     public function forgotPassword(Request $request){ 
-        /*
-        $this->validate($request, [
-                'email' => 'required|email|exists:user,email',
-            ]);*/
-
+        
         $validator = \Validator::make($request->all(), [
             'email' => 'required|email|exists:users,email',            
         ]);
@@ -193,7 +191,7 @@ class RegisterController extends Controller
             Notification::send($user, new ResetPasswordOTP($otp));
            
             $responseArray = [];
-            $responseArray['code'] = 203;
+            $responseArray['code'] = 200;
             $responseArray['messages'] = 'OTP sent to your email!';
             $responseArray['data'] = $user;
 
@@ -211,17 +209,21 @@ class RegisterController extends Controller
     public function forgotPasswordToken(Request $request){
 
        $validator = Validator::make($request->all(),[
-            'token' => 'required', 
+            'token' => 'required',
+            'email' => 'required|exists:users,id', 
+            
         ]);
 
         if($validator->fails()){
         
-        return response()->json($validator->errors(),202);
+        return response()->json($validator->errors(),422);
         
         }
         $responseArray = [];
+
+        try{
         
-        $user = User::where('otp',$request->token)->first();
+        $user = User::where([['otp',$request->token],['email',$request->email]])->first();
         
         if($user != null){
         
@@ -235,11 +237,11 @@ class RegisterController extends Controller
         if($currentDateTime->gt($expiryDateTime)){
             
         
-        $responseArray['code'] = 200;
+        $responseArray['code'] = 203;
         $responseArray['messages'] = 'OTP expired';
         $responseArray['data'] = null; 
         
-        return response()->json($responseArray,200);
+        return response()->json($responseArray,203);
         
         }else{
 
@@ -260,9 +262,15 @@ class RegisterController extends Controller
         $responseArray['messages'] = 'OTP expired or invalid.';
         $responseArray['data'] = null;
 
-        return response()->json($responseArray,200);
+        return response()->json($responseArray,203);
 
         }
+
+            }catch(Exception $e){
+
+                return response()->json(['error' => 'something went wrong'], 500);
+
+            }
 
     }
 
@@ -276,7 +284,7 @@ class RegisterController extends Controller
             ]);
 
         if($validator->fails()){ 
-        return response()->json($validator->errors(),202); 
+        return response()->json($validator->errors(),422); 
         }  
  
         try{
@@ -288,11 +296,11 @@ class RegisterController extends Controller
             $user->save();
             
                 
-            $responseArray['code'] = 203;
+            $responseArray['code'] = 201;
             $responseArray['messages'] = 'Password updated successfully.';
             $responseArray['data'] = null;
 
-            return response()->json($responseArray,200);
+            return response()->json($responseArray,201);
             
 
         }catch (Exception $e) {
