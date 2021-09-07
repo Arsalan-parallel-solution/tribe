@@ -2,6 +2,11 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\SubscriptionController;
+use App\Http\Controllers\AdminAuth\LoginController;
+use App\Http\Controllers\AdminAuth\RegisterController;
+use App\Http\Controllers\AdminAuth\ForgotPasswordController;
+use App\Http\Controllers\AdminAuth\ResetPasswordController;
+use App\Http\Controllers\AdminController;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,3 +31,17 @@ Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name
 Route::get('/subscription/create', [SubscriptionController::class,'index'])->name('subscription.create');
 Route::post('order-post', [SubscriptionController::class,'orderPost'])->name('order-post');
 Route::post('stripe/webhook','\App\Http\Controllers\WebhookController@handleWebhook');
+
+
+Route::group(['prefix' => 'admin'], function () {
+    Route::get('/login', [LoginController::class,'showLoginForm']);
+    Route::post('/login', [LoginController::class,'login'] )->name('admin.login');
+    Route::post('/logout',  [LoginController::class,'logout']  );
+
+    Route::post('/password/email', [ForgotPasswordController::class,'sendResetLinkEmail'] );
+    Route::post('/password/reset',[ResetPasswordController::class,'reset'] );
+    Route::get('/password/reset',[ForgotPasswordController::class,'showLinkRequestForm'] );
+    Route::get('/dashboard',[AdminController::class,'admin'] );
+
+
+});
